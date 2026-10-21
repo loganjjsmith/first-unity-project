@@ -1,0 +1,30 @@
+#!/bin/sh
+# Git-level guard: refuse any update to a protected branch when the change is
+# being made from inside a Claude Code session (CLAUDECODE=1 is set in its shells).
+#
+# Install (Logan runs this once, from the repo root):
+#   cp "tools/reference-transaction" .git/hooks/reference-transaction
+#   chmod +x .git/hooks/reference-transaction
+#
+# Logan's own terminal has no CLAUDECODE set, so his pushes/merges are unaffected.
+# To override deliberately inside a Claude session: CLAUDECODE= git <command>
+# To remove: delete .git/hooks/reference-transaction
+#
+# This layer is a safety net against accidents, not a security boundary: an agent
+# running as the same user could remove it. The final safeguard is that only
+# Logan pushes.
+
+[ "$1" = "prepared" ] || exit 0
+[ -n "$CLAUDECODE" ] || exit 0
+
+while read -r _old _new ref; do
+  case "$ref" in
+    refs/heads/main|refs/heads/stable)
+      echo "reference-transaction hook: refusing to modify $ref from a Claude Code session." >&2
+      echo "Protected branches are Logan's. Work on 'claude' instead." >&2
+      exit 1
+      ;;
+  esac
+done
+
+exit 0

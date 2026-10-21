@@ -1,0 +1,151 @@
+--- a/Assets/Starter Assets/Runtime/ThirdPersonController/Scripts/ThirdPersonController.cs
++++ b/Assets/Starter Assets/Runtime/ThirdPersonController/Scripts/ThirdPersonController.cs
+@@ -75,6 +75,44 @@
+         [Tooltip("For locking the camera position on all axis")]
+         public bool LockCameraPosition = false;
+ 
++        [Header("Movement Sandbox")]
++        [Tooltip("Gates JumpAndGravity/GroundedCheck/Move so an identity mode (climbing, wire-riding, " +
++                 "a ballistic launch) can take over the body without disabling this component, which " +
++                 "would also freeze camera look in LateUpdate. PlayerModes sets it per mode.")]
++        public bool LocomotionEnabled = true;
++
++        [Tooltip("Off: gravity, grounding and movement keep running, but move, sprint and jump input are " +
++                 "ignored - the body still falls and lands, the player just can't steer it. Used for the " +
++                 "respawn wait.")]
++        public bool InputEnabled = true;
++
++        /// <summary>
++        /// Tilts the whole camera orbit so its up is no longer world up - set every frame by ClimbCameraUp
++        /// so a climbed surface reads as the floor (Mario Galaxy style). Identity leaves the camera exactly
++        /// as Starter Assets shipped it.
++        /// </summary>
++        [HideInInspector] public Quaternion CameraUpRotation = Quaternion.identity;
++
++        /// <summary>
++        /// Resets the camera's own orbit yaw (normally mouse-driven, independent of the character's
++        /// facing) so a teleport - respawn being the only case today - puts the camera behind the
++        /// character instead of wherever the player happened to be looking beforehand.
++        /// </summary>
++        public void SetCameraYaw(float yawDegrees)
++        {
++            _cinemachineTargetYaw = yawDegrees;
++        }
++
++        /// <summary>
++        /// Zeroes the accumulated fall/jump velocity. Used when an identity mode (e.g. grabbing a pole)
++        /// takes the body away from base locomotion mid-air, so a stale fall speed doesn't reappear as a
++        /// jolt once locomotion resumes later.
++        /// </summary>
++        public void ResetVerticalVelocity()
++        {
++            _verticalVelocity = 0f;
++        }
++
+         // cinemachine
+         private float _cinemachineTargetYaw;
+         private float _cinemachineTargetPitch;
+@@ -156,9 +194,12 @@
+         {
+             _hasAnimator = TryGetComponent(out _animator);
+ 
+-            JumpAndGravity();
+-            GroundedCheck();
+-            Move();
++            if (LocomotionEnabled)
++            {
++                JumpAndGravity();
++                GroundedCheck();
++                Move();
++            }
+         }
+ 
+         private void LateUpdate()
+@@ -178,8 +219,13 @@
+         private void GroundedCheck()
+         {
+             // set sphere position, with offset
+-            Vector3 spherePosition = new Vector3(transform.position.x, transform.position.y - GroundedOffset,
+-                transform.position.z);
++            // horizontal offset accounts for CharacterController.center.x/z (e.g. an off-center capsule
++            // fitted to a non-humanoid model) - without it, the check samples ground height at the root's
++            // raw position rather than where the capsule/body actually sits, which reads incorrectly on
++            // slopes even though it happens to line up on flat ground
++            Vector3 centerOffset = transform.TransformDirection(new Vector3(_controller.center.x, 0f, _controller.center.z));
++            Vector3 spherePosition = new Vector3(transform.position.x + centerOffset.x, transform.position.y - GroundedOffset,
++                transform.position.z + centerOffset.z);
+             Grounded = Physics.CheckSphere(spherePosition, GroundedRadius, GroundLayers,
+                 QueryTriggerInteraction.Ignore);
+ 
+@@ -207,26 +253,30 @@
+             _cinemachineTargetPitch = ClampAngle(_cinemachineTargetPitch, BottomClamp, TopClamp);
+ 
+             // Cinemachine will follow this target
+-            CinemachineCameraTarget.transform.rotation = Quaternion.Euler(_cinemachineTargetPitch + CameraAngleOverride,
++            CinemachineCameraTarget.transform.rotation = CameraUpRotation * Quaternion.Euler(_cinemachineTargetPitch + CameraAngleOverride,
+                 _cinemachineTargetYaw, 0.0f);
+         }
+ 
+         private void Move()
+         {
++            // Input masked, not skipped, while InputEnabled is off, so gravity and deceleration still run.
++            Vector2 move = InputEnabled ? _input.move : Vector2.zero;
++            bool sprint = InputEnabled && _input.sprint;
++
+             // set target speed based on move speed, sprint speed and if sprint is pressed
+-            float targetSpeed = _input.sprint ? SprintSpeed : MoveSpeed;
++            float targetSpeed = sprint ? SprintSpeed : MoveSpeed;
+ 
+             // a simplistic acceleration and deceleration designed to be easy to remove, replace, or iterate upon
+ 
+             // note: Vector2's == operator uses approximation so is not floating point error prone, and is cheaper than magnitude
+             // if there is no input, set the target speed to 0
+-            if (_input.move == Vector2.zero) targetSpeed = 0.0f;
++            if (move == Vector2.zero) targetSpeed = 0.0f;
+ 
+             // a reference to the players current horizontal velocity
+             float currentHorizontalSpeed = new Vector3(_controller.velocity.x, 0.0f, _controller.velocity.z).magnitude;
+ 
+             float speedOffset = 0.1f;
+-            float inputMagnitude = _input.analogMovement ? _input.move.magnitude : 1f;
++            float inputMagnitude = _input.analogMovement ? move.magnitude : 1f;
+ 
+             // accelerate or decelerate to target speed
+             if (currentHorizontalSpeed < targetSpeed - speedOffset ||
+@@ -249,14 +299,16 @@
+             if (_animationBlend < 0.01f) _animationBlend = 0f;
+ 
+             // normalise input direction
+-            Vector3 inputDirection = new Vector3(_input.move.x, 0.0f, _input.move.y).normalized;
++            Vector3 inputDirection = new Vector3(move.x, 0.0f, move.y).normalized;
+ 
+             // note: Vector2's != operator uses approximation so is not floating point error prone, and is cheaper than magnitude
+             // if there is a move input rotate player when the player is moving
+-            if (_input.move != Vector2.zero)
++            if (move != Vector2.zero)
+             {
++                // Yaw from the upright basis, as CameraBasis reads it: CameraUpRotation can still be easing
++                // back after a climb or teleport, and a rolled camera's euler yaw is meaningless.
+                 _targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg +
+-                                  _mainCamera.transform.eulerAngles.y;
++                                  (Quaternion.Inverse(CameraUpRotation) * _mainCamera.transform.rotation).eulerAngles.y;
+                 float rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, _targetRotation, ref _rotationVelocity,
+                     RotationSmoothTime);
+ 
+@@ -300,7 +352,7 @@
+                 }
+ 
+                 // Jump
+-                if (_input.jump && _jumpTimeoutDelta <= 0.0f)
++                if (InputEnabled && _input.jump && _jumpTimeoutDelta <= 0.0f)
+                 {
+                     // the square root of H * -2 * G = how much velocity needed to reach desired height
+                     _verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
+@@ -389,4 +441,4 @@
+             }
+         }
+     }
+-}
+\ No newline at end of file
++}
+\ No newline at end of file

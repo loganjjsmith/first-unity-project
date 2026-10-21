@@ -1,0 +1,15 @@
+# Editor settings honoured by Visual Studio, Rider and VS Code, so every editor saves files the same way.
+# Line endings are LF everywhere, matching what .gitattributes stores and checks out.
+root = true
+
+[*]
+end_of_line = lf
+insert_final_newline = true
+
+[*.cs]
+indent_style = space
+indent_size = 4
+
+[*.md]
+# Two trailing spaces are a deliberate line break in Markdown.
+trim_trailing_whitespace = false

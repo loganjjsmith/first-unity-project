@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(git checkout main:*)",
+      "Bash(git checkout stable:*)",
+      "Bash(git switch main:*)",
+      "Bash(git switch stable:*)",
+      "Bash(git checkout -B:*)",
+      "Bash(git branch -d:*)",
+      "Bash(git branch -D:*)",
+      "Bash(git branch -f:*)",
+      "Bash(git branch -m:*)",
+      "Bash(git branch -M:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git update-ref:*)",
+      "Bash(git filter-branch:*)",
+      "Bash(git filter-repo:*)",
+      "Bash(git reflog expire:*)",
+      "Bash(git tag -d:*)",
+      "Bash(git tag -f:*)",
+      "Bash(git config:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git remote remove:*)",
+      "Bash(git remote rm:*)",
+      "Bash(git remote add:*)",
+      "Bash(gh repo:*)",
+      "Bash(gh api:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh release:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr close:*)",
+      "Edit(.git/**)",
+      "Edit(.claude/hooks/**)",
+      "Edit(.claude/settings.json)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guard-protected-branches.mjs",
+            "if": "Bash(git *)",
+            "timeout": 10,
+            "statusMessage": "Checking protected branches..."
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guard-protected-branches.mjs",
+            "if": "Bash(gh *)",
+            "timeout": 10,
+            "statusMessage": "Checking protected branches..."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+    "name": "MovementSandbox",
+    "rootNamespace": "MovementSandbox",
+    "references": [
+        "MovementSandbox.Mechanics",
+        "Unity.StarterAssets",
+        "Unity.InputSystem",
+        "Unity.Mathematics",
+        "Unity.Splines",
+        "Unity.Animation.Rigging"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
