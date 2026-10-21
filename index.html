@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity Web Player | First Unity Project</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+  </head>
+  <body>
+  <div id="page">
+    <aside id="controls" class="panel">
+      <h2>Controls</h2>
+      <p class="hint">Click the game to capture the mouse. <kbd>Esc</kbd> lets it go; wait a moment before clicking back in.</p>
+      <dl class="controls">
+        <dt>Anywhere</dt>
+        <dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move, mouse looks</dd>
+        <dd><kbd>Shift</kbd> sprint · <kbd>Space</kbd> jump · <kbd>R</kbd> respawn</dd>
+        <dt>At a pole</dt>
+        <dd>Hold <kbd>W</kbd> into it to grab and climb</dd>
+        <dd><kbd>W</kbd>/<kbd>S</kbd> up and down · <kbd>A</kbd>/<kbd>D</kbd> circle it</dd>
+        <dd><kbd>Space</kbd> kick off toward the camera</dd>
+        <dt>On top of a pole</dt>
+        <dd>Mouse turns · <kbd>Space</kbd> leap · <kbd>S</kbd> climb down</dd>
+        <dd><kbd>W</kbd> take the wire the camera points along</dd>
+        <dt>On a wire</dt>
+        <dd><kbd>W</kbd>/<kbd>S</kbd> travel · <kbd>Space</kbd> drop off</dd>
+        <dd>Hold <kbd>C</kbd> or <kbd>X</kbd>, release to slingshot · <kbd>Q</kbd> locks the aim</dd>
+        <dt>In the air</dt>
+        <dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> steer gently · wires are grabbed automatically</dd>
+        <dt>Test shortcuts</dt>
+        <dd><kbd>1</kbd> teleport to the test spot · <kbd>Z</kbd> go limp</dd>
+      </dl>
+    </aside>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+      <div id="unity-footer">
+        <div id="unity-logo-title-footer"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">First Unity Project</div>
+      </div>
+    </div>
+
+    <aside id="goals" class="panel">
+      <h2>Things to try</h2>
+      <ul class="goals">
+        <li><label><input type="checkbox"><span>Walk into a pole and climb to the top</span></label></li>
+        <li><label><input type="checkbox"><span>Leap off the top of a pole</span></label></li>
+        <li><label><input type="checkbox"><span>Ride a wire all the way to the next pole</span></label></li>
+        <li><label><input type="checkbox"><span>Slingshot off a wire under control (<kbd>C</kbd>)</span></label></li>
+        <li><label><input type="checkbox"><span>On a wire, pull back with <kbd>X</kbd> to get flung as a ragdoll, then get back up</span></label></li>
+        <li><label><input type="checkbox"><span>Launch off one wire and catch another in mid-air</span></label></li>
+        <li><label><input type="checkbox"><span>Go limp mid-sprint (<kbd>Z</kbd>)</span></label></li>
+      </ul>
+    </aside>
+  </div>
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type) {
+        var warningBanner = document.querySelector("#unity-warning");
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/demo3.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/demo3.data.unityweb",
+        frameworkUrl: buildUrl + "/demo3.framework.js.unityweb",
+        codeUrl: buildUrl + "/demo3.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Logan Smith",
+        productName: "First Unity Project",
+        productVersion: "0.1.0",
+        showBanner: unityShowBanner,
+        // Chrome refuses to re-capture the mouse for about a second after Esc releases it, and Unity
+        // would report that refusal as a fatal error. Ignore only that one; the next click captures it.
+        errorHandler: function(err, url, line) {
+          return /pointer lock cannot be acquired/i.test(String(err));
+        },
+      };
+
+      // By default, Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      // config.matchWebGLToCanvasSize = false;
+
+      // If you would like all file writes inside Unity Application.persistentDataPath
+      // directory to automatically persist so that the contents are remembered when
+      // the user revisits the site the next time, uncomment the following line:
+      // config.autoSyncPersistentDataPath = true;
+      // This autosyncing is currently not the default behavior to avoid regressing
+      // existing user projects that might rely on the earlier manual
+      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
+      // expected to change.
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        document.querySelector("#unity-container").className = "unity-mobile";
+        document.querySelectorAll(".panel").forEach((p) => p.style.display = "none");
+        canvas.className = "unity-mobile";
+
+        // To lower canvas resolution on mobile devices to gain some
+        // performance, uncomment the following line:
+        // config.devicePixelRatio = 1;
+
+
+      } else {
+        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
+        canvas.style.width = "960px";
+        canvas.style.height = "600px";
+      }
+
+      document.querySelector("#unity-loading-bar").style.display = "block";
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+              }).then((unityInstance) => {
+                document.querySelector("#unity-loading-bar").style.display = "none";
+                document.querySelector("#unity-fullscreen-button").onclick = () => {
+                  unityInstance.SetFullscreen(1);
+                };
+
+              }).catch((message) => {
+                alert(message);
+              });
+            };
+
+      document.body.appendChild(script);
+
+    </script>
+  </body>
+</html>
